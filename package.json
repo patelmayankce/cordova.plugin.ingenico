@@ -1,0 +1,34 @@
+{
+    "name": "cordova.plugin.ingenico",
+    "version": "0.0.1-dev",
+    "description": "This plugin provides ingenico integration for Android.",
+    "cordova": {
+        "id": "cordova.plugin.ingenico",
+        "platforms": [
+            "android"
+        ]
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/patelmayankce/cordova.plugin.ingenico.git"
+    },
+    "keywords": [
+        "ionic",
+        "cordova",
+        "ingenico",
+        "cordova-android"
+    ],
+    "engines": {
+        "cordovaDependencies": {
+            "2.0.0": {
+                "cordova": ">100"
+            }
+        }
+    },
+    "author": "Mayank Patel",
+    "license": "",
+    "bugs": {
+        "url": "https://github.com/patelmayankce/cordova.plugin.ingenico/issues"
+    },
+    "homepage": "https://github.com/patelmayankce/cordova.plugin.ingenico"
+}
