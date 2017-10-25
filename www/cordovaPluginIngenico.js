@@ -1,5 +1,5 @@
 var exec = require('cordova/exec');
 
-exports.coolMethod = function (arg0, success, error) {
-    exec(success, error, 'cordovaPluginIngenico', 'coolMethod', [arg0]);
+exports.connect = function (ip_address, port, success, error) {
+    exec(success, error, 'cordovaPluginIngenico', 'connect', [ip_address, port]);
 };
