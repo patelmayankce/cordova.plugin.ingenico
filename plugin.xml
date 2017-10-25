@@ -11,7 +11,7 @@
          </feature>
       </config-file>
       <config-file parent="/*" target="AndroidManifest.xml" />
-      <source-file src="src/android/cordovaPluginIngenico.java" target-dir="src/cordova/plugin/ingenico/cordovaPluginIngenico" />
+      <source-file src="src/android/cordovaPluginIngenico.java" target-dir="src/cordova.plugin.ingenico/cordovaPluginIngenico" />
       <framework src="src/android/cordovaPluginIngenico.gradle" custom="true" type="gradleReference" />
       <resource-file src="aar/rba_sdk.aar" target="libs/rba_sdk.aar" />
    </platform>
