@@ -27,26 +27,24 @@ public class cordovaPluginIngenico extends CordovaPlugin {
     }
 
     private void connect(String ip_address,String port, CallbackContext callbackContext) {
-
-        if(this.RBA_SDK_Initialize()){
-            Comm_Settings comSettings = new Comm_Settings();
-            comSettings.Interface_id      = Comm_Settings_Constants.SSL_TCPIP_INTERFACE;
-            comSettings.IP_Address   = "192.168.0.101";
-            comSettings.Port_Num     = "12000";
-            ERROR_ID ret = RBA_API.Connect(comSettings);
-            if (ret == ERROR_ID.RESULT_SUCCESS){
-                callbackContext.success("connected");
-            }else{
-                callbackContext.success("initialized");                
-            }
+        if(ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0 ){
+            if(this.RBA_SDK_Initialize()){
+                Comm_Settings comSettings = new Comm_Settings();
+                comSettings.Interface_id      = Comm_Settings_Constants.SSL_TCPIP_INTERFACE;
+                comSettings.IP_Address   = ip_address;
+                comSettings.Port_Num     = port;
+                ERROR_ID ret = RBA_API.Connect(comSettings);
+                if (ret == ERROR_ID.RESULT_SUCCESS){
+                    callbackContext.success("connected");
+                }else{
+                    callbackContext.success("initialized");                
+                }
+            } else {
+                callbackContext.error("Expected one non-empty string argument.");
+            }   
         } else {
-            callbackContext.error("Expected one non-empty string argument.");
-        }
-        // if (message != null && message.length() > 0) {
-        //     callbackContext.success(message);
-        // } else {
-        //     callbackContext.error("Expected one non-empty string argument.");
-        // }
+            callbackContext.error("Ip Address and port is missing");
+        }        
     }
 
     private boolean RBA_SDK_Initialize()
