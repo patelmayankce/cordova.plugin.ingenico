@@ -48,7 +48,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                 System.out.println(comSettings.IP_Address);
                 System.out.println(comSettings.Port_Num);
 
-                try{ caCertFile   		= context.getAssets().open("CA_SERVER_CERT.PEM");
+                try{ caCertFile   		= context.getAssets().open("www/assets/certy/CA_SERVER_CERT.PEM");
                 System.out.println(caCertFile);
                 System.out.println("get caCertFile assets");
                 }
@@ -56,7 +56,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                   System.out.println("IO exception:"+e.toString());
                    }
 
-                try{ clientCertKeyFile   = context.getAssets().open("CLIENT.bks");
+                try{ clientCertKeyFile   = context.getAssets().open("www/assets/certy/CLIENT.bks");
                 System.out.println(clientCertKeyFile);
                 System.out.println("get clientCertKeyFile assets");}
                 catch  (IOException e) {
