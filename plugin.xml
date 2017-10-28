@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="cordova.plugin.ingenico" version="0.0.18">
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="cordova.plugin.ingenico" version="0.0.19">
    <name>cordovaPluginIngenico</name>
    <js-module name="cordovaPluginIngenico" src="www/cordovaPluginIngenico.js">
       <clobbers target="cordova.plugins.cordovaPluginIngenico" />
@@ -13,7 +13,6 @@
       <config-file parent="/*" target="AndroidManifest.xml" />
       <source-file src="src/android/cordovaPluginIngenico.java" target-dir="src/cordova/plugin/ingenico/cordovaPluginIngenico" />
       <framework src="src/android/cordovaPluginIngenico.gradle" custom="true" type="gradleReference" />
-      <resource-file src="aar/rba_sdk.aar" target="libs/rba_sdk.aar" />
-      <asset src="certy" target="assets/certy" />      
+      <resource-file src="aar/rba_sdk.aar" target="libs/rba_sdk.aar" />      
    </platform>
 </plugin>

@@ -1,6 +1,6 @@
 {
     "name": "cordova.plugin.ingenico",
-    "version": "0.0.18",
+    "version": "0.0.19",
     "description": "This plugin provides ingenico integration for Android.",
     "cordova": {
         "id": "cordova.plugin.ingenico",
