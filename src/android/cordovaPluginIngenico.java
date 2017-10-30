@@ -14,6 +14,7 @@ import org.json.JSONObject;
 
 import com.ingenico.framework.iconnecttsi.*;
 
+import java.util.Map;
 /**
  * This class echoes a string called from JavaScript.
  */
@@ -30,11 +31,11 @@ public class cordovaPluginIngenico extends CordovaPlugin {
 
     private void connect(String ip_address,String port, CallbackContext callbackContext) {
         if(ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0 ){
-            RequestType.Sale saleReq = new RequestType.Sale(1000);
+            RequestType.Sale saleReq = new RequestType.Sale(1);
             saleReq.setClerkId(1);
             saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
 
-            this.processSaleRequest(saleReq);
+            this.processSaleRequest(saleReq,ip_address,port);
 
             callbackContext.success("Ip Address and port is missing");
         } else {
@@ -42,28 +43,29 @@ public class cordovaPluginIngenico extends CordovaPlugin {
         }
     }
 
-    private void processSaleRequest(RequestType.Sale... params){
+    private void processSaleRequest(RequestType.Sale saleReq,String ip_address,String port){
         TsiStatus ret = new TsiStatus();
 
-        System.out.println("iConnect-TSI version " + TransactionManager.getVersion() + eol);
-        System.out.println("iConnect version " + Utility.iConnectVersion() + eol);
+        System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
+        System.out.println("iConnect version " + Utility.iConnectVersion());
+        IConnectDevice device = null;
 
         try {
             device = new IConnectTcpDevice(ip_address, port);
             //pass "this" as an class implementing IConnectDevice.Logger
-            device.enableTsiTraces(true);
+            // device.enableTsiTraces(true,this);
 
             //By contract, first parameter is a sale request object
-            RequestType.Sale req = params[0];
+            RequestType.Sale req = saleReq;
 
             TransactionManager transactionManager = new TransactionManager(device);
 
-            System.out.println("Connecting...  " + eol);
+            System.out.println("Connecting...  ");
             device.connect();
-            System.out.println("Connected" + eol);
+            System.out.println("Connected");
 
-            System.out.println("Sale request with amount of" + req.getAmount() + eol);
-            System.out.println("Sending request ...  " + eol);
+            System.out.println("Sale request with amount of" + req.getAmount());
+            System.out.println("Sending request ...  ");
 
             transactionManager.sendRequest(req);
 
@@ -72,7 +74,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
 
 
             do {
-                System.out.println("Waiting for response...  " + eol);
+                System.out.println("Waiting for response...  ");
                 ResponseType.Raw resp = transactionManager.receiveResponse();
 
 
@@ -88,24 +90,24 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                     ResponseType.Sale saleResp = new ResponseType.Sale().validate(resp);
 
                     if (saleResp == null) {
-                        System.out.println("ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType() + eol);
+                        System.out.println("ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType());
                         break;
                     } else {
-                        System.out.println("Status: " + saleResp.getStatus() + eol);
+                        System.out.println("Status: " + saleResp.getStatus());
 
 
-                        System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()) + eol);
-                        System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()) + eol);
-                        System.out.println("Card Type: " + saleResp.getCustomerCardType() + eol);
-                        System.out.println("Customer PAN " + saleResp.getCustomerAccountNo() + eol);
-                        System.out.println("Reference Number: " + saleResp.getReferenceNo() + eol);
-                        System.out.println("Terminal ID: " + saleResp.getTerminalId() + eol);
-                        System.out.println("Total Amount: " + Integer.toString(saleResp.getTotalAmount()) + eol);
+                        System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()));
+                        System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()));
+                        System.out.println("Card Type: " + saleResp.getCustomerCardType());
+                        System.out.println("Customer PAN " + saleResp.getCustomerAccountNo());
+                        System.out.println("Reference Number: " + saleResp.getReferenceNo());
+                        System.out.println("Terminal ID: " + saleResp.getTerminalId());
+                        System.out.println("Total Amount: " + Integer.toString(saleResp.getTotalAmount()));
                         refNo = saleResp.getReferenceNo();
                     }
                 } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.CancelledByUser ||
                         status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.TimeoutOnUserInput) {
-                    System.out.println("Cancelled or timed out" + eol);
+                    System.out.println("Cancelled or timed out");
                     break;
                 }
 
@@ -120,7 +122,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                 RequestType.VoidRequest voidReq = new RequestType.VoidRequest();
                 voidReq.setReferenceNo(refNo);
 
-                System.out.println("Void request with reference number " + refNo + " is being sent..." + eol);
+                System.out.println("Void request with reference number " + refNo + " is being sent...");
                 transactionManager.sendRequest(voidReq);
 
                 do {
@@ -129,7 +131,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                     iConnectTsiTypes.TransactionStatus status = raw.getStatus();
 
                     //the same outcome as from using status.toString()
-                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()) + eol);
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
 
                     multiTransaction = raw.isMultiTransactionFlag();
 
@@ -138,25 +140,42 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                     } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
                         ResponseType.VoidResponse voidResp = new ResponseType.VoidResponse().validate(raw);
                         if (voidResp == null) {
-                            System.out.println("ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType() + eol);
+                            System.out.println("ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType());
                             break;
                         }
-                        System.out.println("Successfully voided" + eol);
+                        System.out.println("Successfully voided");
                     }
                 } while (multiTransaction);
             }
 
             System.out.println("Disconnecting ...  ");
             device.disconnect();
-            System.out.println("OK" + eol);
+            System.out.println("OK");
 
         } catch (TsiException e) {
             ret = new TsiStatus(e);
-            System.out.println(e.getMessage() + eol);
+            System.out.println(e.getMessage());
         } finally {
             device.dispose();
         }
 
+    }
+
+    private boolean printReceipt(ResponseType.Raw resp, TransactionManager transactionManager) {
+
+        System.out.println("Receipt Information");
+        for (Map.Entry<Integer, String> tag : resp.tags().entrySet()) {
+            System.out.println("Tag " + Integer.toString(tag.getKey()) + ": " + tag.getValue());
+        }
+
+        RequestType.PrintingStatus req = new RequestType.PrintingStatus(new iConnectTsiTypes.EcrPrintingStatus(iConnectTsiTypes.EcrPrintingStatus.Ok));
+        try {
+            transactionManager.sendRequest(req);
+        } catch (TsiException e) {
+            System.out.println("EXCEPTION : " + e.getMessage());
+            return false;
+        }
+        return true;
     }
 
 }
