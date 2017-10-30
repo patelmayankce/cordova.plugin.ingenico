@@ -12,22 +12,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 // import android.content.Context;
 
-import com.ingenico.rba_sdk.*;
-import com.ingenico.rba_sdk.RBA_API.LOG_LEVEL;
-import com.ingenico.rba_sdk.RBA_API.LOG_OUTPUT_FORMAT_OPTIONS;
-// import com.ingenico.rbasdk_android_adapter.*;
-import com.ingenico.iConnectEFT.*;
+import com.ingenico.framework.iconnecttsi.*;
 
 /**
  * This class echoes a string called from JavaScript.
  */
 public class cordovaPluginIngenico extends CordovaPlugin {
 
-    // private Context context;
-
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        // context = this.cordova.getActivity().getApplicationContext();
         if (action.equals("connect")) {
             this.connect(args.getString(0), args.getString(1),callbackContext);
             return true;
@@ -37,185 +30,133 @@ public class cordovaPluginIngenico extends CordovaPlugin {
 
     private void connect(String ip_address,String port, CallbackContext callbackContext) {
         if(ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0 ){
-            if(this.RBA_SDK_Initialize()){
-                // InputStream clientCertKeyFile = null;
-                // InputStream caCertFile        = null;
+            RequestType.Sale saleReq = new RequestType.Sale(1000);
+            saleReq.setClerkId(1);
+            saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
 
-                // System.out.println("initialize iConnectEFT");
-                // try{
-                //   iConnectEFT eft = new iConnectEFT("mayank");
-                //   eft.ConnectTcp(ip_address,443);
-                //   System.out.println("Connection establised");
-                // }catch(RbaSdkException e){
-                //   System.out.println("RbaSdkException:"+ e.toString());
-                // }
+            this.processSaleRequest(saleReq);
 
-                // System.out.println(eft);
-
-                Comm_Timeout commTimeout = new Comm_Timeout();
-                commTimeout.connectTimeOut = 2000;
-                commTimeout.receiveTimeOut = 2000;
-                commTimeout.sendTimeOut    = 2000;
-                RBA_API.SetCommTimeouts(commTimeout);
-
-
-                Comm_Settings comSettings = new Comm_Settings();
-                // RBASDKAdapter.SetApplicationContext(context);
-                comSettings.Interface_id      = Comm_Settings_Constants.TCPIP_INTERFACE;
-                comSettings.IP_Address   = ip_address;
-                comSettings.Port_Num     = port;
-                System.out.println(comSettings.IP_Address);
-                System.out.println(comSettings.Port_Num);
-/**
-                try{ caCertFile   		= context.getAssets().open("www/assets/certy/CA_SERVER_CERT.PEM");
-                System.out.println(caCertFile);
-                System.out.println("get caCertFile assets");
-                }
-                catch  (IOException e) {
-                  System.out.println("IO exception:"+e.toString());
-                   }
-
-                try{ clientCertKeyFile   = context.getAssets().open("www/assets/certy/CLIENT.bks");
-                System.out.println(clientCertKeyFile);
-                System.out.println("get clientCertKeyFile assets");}
-                catch  (IOException e) {
-                  System.out.println("IO exception:"+e.toString());
-                  try{ caCertFile.close();}catch(IOException ee){
-                    System.out.println("IO exception:"+ ee.toString());
-                  }
-                  return;
-                }
-
-                char keystorepass[]	= "Ingenico".toCharArray();
-                RBASDKAdapter.SetCaCerticicate(caCertFile);
-                RBASDKAdapter.SetLocalCerticicate(clientCertKeyFile,keystorepass);
- */
-                ERROR_ID ret = RBA_API.Connect(comSettings);
-                System.out.println(ret);
-                if (ret == ERROR_ID.RESULT_SUCCESS){
-                  if( RBA_API.GetConnectionStatus() == RBA_API.ConnectionStatus.CONNECTED){
-                    this.DoCardRequest();
-                    callbackContext.success("connected");
-                  }else{
-                    callbackContext.success("not connected");
-                  }
-                }else{
-                    callbackContext.success("initialized");
-                }
-            } else {
-                callbackContext.error("Expected one non-empty string argument.");
-            }
+            callbackContext.success("Ip Address and port is missing");
         } else {
             callbackContext.error("Ip Address and port is missing");
         }
     }
 
-    private boolean RBA_SDK_Initialize()
-    {
-    	boolean ret 			= false;
-        System.out.println("RBA_SDK Initializing ... ");
+    private void processSaleRequest(RequestType.Sale... params){
+        TsiStatus ret = new TsiStatus();
 
-        // Initialize call back for RBA_SDK log
-        RBA_API.SetDefaultLogLevel(LOG_LEVEL.LTL_TRACE);
-        RBA_API.SetLogCallBack(new LogTrace());
-        RBA_API.SetTraceOutputFormatOption(LOG_OUTPUT_FORMAT_OPTIONS.LOFO_NO_INSTANCE_ID);
+        System.out.println("iConnect-TSI version " + TransactionManager.getVersion() + eol);
+        System.out.println("iConnect version " + Utility.iConnectVersion() + eol);
 
-        if( RBA_API.Initialize() == ERROR_ID.RESULT_SUCCESS )
-        {
-            System.out.println("Initialized");
+        try {
+            device = new IConnectTcpDevice(ip_address, port);
+            //pass "this" as an class implementing IConnectDevice.Logger
+            device.enableTsiTraces(true);
 
-            // // Initialize call back for RBA messages
-            // RBA_API.SetMessageCallBack(new RBA_SDK_EventCallBackHandler());
+            //By contract, first parameter is a sale request object
+            RequestType.Sale req = params[0];
 
-            ret = true;
+            TransactionManager transactionManager = new TransactionManager(device);
+
+            System.out.println("Connecting...  " + eol);
+            device.connect();
+            System.out.println("Connected" + eol);
+
+            System.out.println("Sale request with amount of" + req.getAmount() + eol);
+            System.out.println("Sending request ...  " + eol);
+
+            transactionManager.sendRequest(req);
+
+            boolean multiTransaction = false;
+            String refNo = null;
+
+
+            do {
+                System.out.println("Waiting for response...  " + eol);
+                ResponseType.Raw resp = transactionManager.receiveResponse();
+
+
+                iConnectTsiTypes.TransactionStatus status = resp.getStatus();
+                multiTransaction = resp.isMultiTransactionFlag();
+
+                //Handle receipt printing
+                if (resp.getStatus().getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+
+                    multiTransaction = printReceipt(resp, transactionManager);
+
+                } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                    ResponseType.Sale saleResp = new ResponseType.Sale().validate(resp);
+
+                    if (saleResp == null) {
+                        System.out.println("ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType() + eol);
+                        break;
+                    } else {
+                        System.out.println("Status: " + saleResp.getStatus() + eol);
+
+
+                        System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()) + eol);
+                        System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()) + eol);
+                        System.out.println("Card Type: " + saleResp.getCustomerCardType() + eol);
+                        System.out.println("Customer PAN " + saleResp.getCustomerAccountNo() + eol);
+                        System.out.println("Reference Number: " + saleResp.getReferenceNo() + eol);
+                        System.out.println("Terminal ID: " + saleResp.getTerminalId() + eol);
+                        System.out.println("Total Amount: " + Integer.toString(saleResp.getTotalAmount()) + eol);
+                        refNo = saleResp.getReferenceNo();
+                    }
+                } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.CancelledByUser ||
+                        status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.TimeoutOnUserInput) {
+                    System.out.println("Cancelled or timed out" + eol);
+                    break;
+                }
+
+            } while (multiTransaction);
+
+            //Reference number is not null, which means we can use it to send a Void request
+            if (refNo != null) {
+                //reconnect to a terminal
+                device.disconnect();
+                device.connect();
+                //create and fill a void request object
+                RequestType.VoidRequest voidReq = new RequestType.VoidRequest();
+                voidReq.setReferenceNo(refNo);
+
+                System.out.println("Void request with reference number " + refNo + " is being sent..." + eol);
+                transactionManager.sendRequest(voidReq);
+
+                do {
+
+                    ResponseType.Raw raw = transactionManager.receiveResponse();
+                    iConnectTsiTypes.TransactionStatus status = raw.getStatus();
+
+                    //the same outcome as from using status.toString()
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()) + eol);
+
+                    multiTransaction = raw.isMultiTransactionFlag();
+
+                    if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+                        multiTransaction = printReceipt(raw, transactionManager);
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                        ResponseType.VoidResponse voidResp = new ResponseType.VoidResponse().validate(raw);
+                        if (voidResp == null) {
+                            System.out.println("ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType() + eol);
+                            break;
+                        }
+                        System.out.println("Successfully voided" + eol);
+                    }
+                } while (multiTransaction);
+            }
+
+            System.out.println("Disconnecting ...  ");
+            device.disconnect();
+            System.out.println("OK" + eol);
+
+        } catch (TsiException e) {
+            ret = new TsiStatus(e);
+            System.out.println(e.getMessage() + eol);
+        } finally {
+            device.dispose();
         }
-        else
-        	System.out.println("Initialized Failed");
 
-        return ret;
     }
 
-    private void DoCardRequest()
-    {
-        if( this.Online() && this.Offline() && this.CardReadRequest()) {
-            System.out.println("");
-            System.out.println("SWIPE A CARD ON TELIUM DEVICE");
-            System.out.println("");
-        }
-    }
-
-    private boolean Online()
-    {
-        System.out.println("Online Message Sent...");
-
-        //Set Parameters
-        RBA_API.SetParam(PARAMETER_ID.P01_REQ_APPID,   "0000");
-        RBA_API.SetParam(PARAMETER_ID.P01_REQ_PARAMID, "0000");
-
-        //Process Message
-        if (RBA_API.ProcessMessage(MESSAGE_ID.M01_ONLINE) != ERROR_ID.RESULT_SUCCESS) {
-            System.out.println("Online Message Failed");
-            return false;
-        }
-
-        System.out.println("Online Message Successful");
-
-        // Get Parameters
-        String appId   = RBA_API.GetParam(PARAMETER_ID.P01_RES_APPID);
-        String paramId = RBA_API.GetParam(PARAMETER_ID.P01_RES_PARAMID);
-
-        System.out.println("Online :: App ID = " + appId);
-        System.out.println("Online :: Param ID = " + paramId);
-
-        return true;
-    }
-
-    private boolean Offline()
-    {
-        System.out.println("Offline Message Sent...");
-        // Set Parameters
-        RBA_API.SetParam(PARAMETER_ID.P00_REQ_REASON_CODE, ("0000"));
-        // Process Message
-        if (RBA_API.ProcessMessage(MESSAGE_ID.M00_OFFLINE) != ERROR_ID.RESULT_SUCCESS) {
-            System.out.println("Offline Failed");
-            return false;
-        }
-        System.out.println("Offline Successful");
-        return true;
-    }
-
-    private boolean Status()
-    {
-        System.out.println("Status Message Sent...");
-        // Process Message
-        if (RBA_API.ProcessMessage(MESSAGE_ID.M11_STATUS) != ERROR_ID.RESULT_SUCCESS) {
-            System.out.println("Status Failed");
-            return false;
-        }
-        System.out.println("Status Successful");
-        return true;
-    }
-
-    private boolean CardReadRequest()
-    {
-        RBA_API.SetParam(PARAMETER_ID.P23_REQ_PROMPT_INDEX, "Hello, Swipe a card");
-        //RBA_API.SetParam(PARAMETER_ID.P23_REQ_FORM_NAME,    "FORM1.K3Z");
-        //RBA_API.SetParam(PARAMETER_ID.P23_REQ_OPTIONS,      "MSC");
-
-        if( RBA_API.ProcessMessage(MESSAGE_ID.M23_CARD_READ) != ERROR_ID.RESULT_SUCCESS ) {
-            System.out.println("Card Read Failed");
-            return false;
-        }
-        System.out.println("Card Read Successful");
-        return true;
-    }
-
-
-    private class LogTrace implements LogTraceInterface
-    {
-        public void Log(String  logLine)
-        {
-            System.out.println(logLine);
-        }
-    }
 }

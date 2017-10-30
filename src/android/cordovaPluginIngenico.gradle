@@ -6,7 +6,7 @@ repositories{
 }
 
 dependencies {
-   compile(name:'rba_sdk', ext:'aar')
+   compile(name:'iconnecttsiwrapper-arm-release', ext:'aar')
 }
 
 android {
