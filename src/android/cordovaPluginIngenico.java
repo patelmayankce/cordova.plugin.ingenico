@@ -24,7 +24,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
   @Override
   public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
     if (action.equals("connect")) {
-      this.connect(args.getString(0), args.getString(1), args.getString(2), callbackContext);
+      this.connect(args.getString(0), args.getString(1), args.getInt(2), callbackContext);
       return true;
     }
     return false;
@@ -35,7 +35,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
     JSONObject JSONResponse = new JSONObject();
 
     if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null
-        && port.trim().length() > 0 && amount.trim() != null && amount.trim().length() > 0) {
+        && port.trim().length() > 0 && amount != null) {
       RequestType.Sale saleReq = new RequestType.Sale(amount);
       saleReq.setClerkId(1);
       saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
