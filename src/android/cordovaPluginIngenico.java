@@ -21,212 +21,211 @@ import java.util.Map;
  */
 public class cordovaPluginIngenico extends CordovaPlugin {
 
-  @Override
-  public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-    if (action.equals("connect")) {
-      this.connect(args.getString(0), args.getString(1), args.getInt(2), callbackContext);
-      return true;
-    } else if (action.equals("void")) {
-      this.voidTransation(args.getString(0), args.getString(1), args.getString(3), callbackContext);
-      return true;
+    @Override
+    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+        if (action.equals("connect")) {
+            this.connect(args.getString(0), args.getString(1), args.getInt(2), callbackContext);
+            return true;
+        } else if (action.equals("void")) {
+            this.voidTransation(args.getString(0), args.getString(1), args.getString(2), callbackContext);
+            return true;
+        }
+        return false;
     }
-    return false;
-  }
 
-  private void connect(String ip_address, String port, Integer amount, CallbackContext callbackContext)
-      throws JSONException {
-    System.out.println("Ingenico Connecting......");
-    JSONObject JSONResponse = new JSONObject();
+    private void connect(String ip_address, String port, Integer amount, CallbackContext callbackContext) throws JSONException {
+        System.out.println("Ingenico Connecting......");
+        JSONObject JSONResponse = new JSONObject();
 
-    if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
-        && amount != null) {
-      RequestType.Sale saleReq = new RequestType.Sale(amount);
-      saleReq.setClerkId(1);
-      saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
+        if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
+                && amount != null) {
+            RequestType.Sale saleReq = new RequestType.Sale(amount);
+            saleReq.setClerkId(1);
+            saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
 
-      // this.processSaleRequest(saleReq,ip_address,port);
+            // this.processSaleRequest(saleReq,ip_address,port);
 
-      TsiStatus ret = new TsiStatus();
+            TsiStatus ret = new TsiStatus();
 
-      System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
-      System.out.println("iConnect version " + Utility.iConnectVersion());
-      IConnectDevice device = null;
+            System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
+            System.out.println("iConnect version " + Utility.iConnectVersion());
+            IConnectDevice device = null;
 
-      try {
-        device = new IConnectTcpDevice(ip_address, port);
-        //pass "this" as an class implementing IConnectDevice.Logger
-        // device.enableTsiTraces(true,this);
+            try {
+                device = new IConnectTcpDevice(ip_address, port);
+                //pass "this" as an class implementing IConnectDevice.Logger
+                // device.enableTsiTraces(true,this);
 
-        //By contract, first parameter is a sale request object
-        RequestType.Sale req = saleReq;
+                //By contract, first parameter is a sale request object
+                RequestType.Sale req = saleReq;
 
-        TransactionManager transactionManager = new TransactionManager(device);
+                TransactionManager transactionManager = new TransactionManager(device);
 
-        System.out.println("Connecting...  ");
-        device.connect();
-        System.out.println("Connected");
+                System.out.println("Connecting...  ");
+                device.connect();
+                System.out.println("Connected");
 
-        System.out.println("Sale request with amount of" + req.getAmount());
-        System.out.println("Sending request ...  ");
+                System.out.println("Sale request with amount of" + req.getAmount());
+                System.out.println("Sending request ...  ");
 
-        transactionManager.sendRequest(req);
+                transactionManager.sendRequest(req);
 
-        boolean multiTransaction = false;
-        String refNo = null;
+                boolean multiTransaction = false;
+                String refNo = null;
 
-        do {
-          System.out.println("Waiting for response...  ");
-          ResponseType.Raw resp = transactionManager.receiveResponse();
+                do {
+                    System.out.println("Waiting for response...  ");
+                    ResponseType.Raw resp = transactionManager.receiveResponse();
 
-          iConnectTsiTypes.TransactionStatus status = resp.getStatus();
-          multiTransaction = resp.isMultiTransactionFlag();
+                    iConnectTsiTypes.TransactionStatus status = resp.getStatus();
+                    multiTransaction = resp.isMultiTransactionFlag();
 
-          //Handle receipt printing
-          if (resp.getStatus().getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+                    //Handle receipt printing
+                    if (resp.getStatus().getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
 
-            multiTransaction = printReceipt(resp, transactionManager);
+                        multiTransaction = printReceipt(resp, transactionManager);
 
-          } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
-            ResponseType.Sale saleResp = new ResponseType.Sale().validate(resp);
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                        ResponseType.Sale saleResp = new ResponseType.Sale().validate(resp);
 
-            if (saleResp == null) {
-              System.out
-                  .println("ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType());
-              JSONResponse.put("error",
-                  "ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType());
-              break;
-            } else {
-              System.out.println("Status: " + saleResp.getStatus());
+                        if (saleResp == null) {
+                            System.out
+                                    .println("ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType());
+                            JSONResponse.put("error",
+                                    "ERROR: Cannot construct sale response object from raw. Reported type: " + resp.getType());
+                            break;
+                        } else {
+                            System.out.println("Status: " + saleResp.getStatus());
 
-              System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()));
-              System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()));
-              System.out.println("Card Type: " + saleResp.getCustomerCardType());
-              System.out.println("Customer PAN " + saleResp.getCustomerAccountNo());
-              System.out.println("Reference Number: " + saleResp.getReferenceNo());
-              System.out.println("Terminal ID: " + saleResp.getTerminalId());
-              System.out.println("Total Amount: " + Integer.toString(saleResp.getTotalAmount()));
-              refNo = saleResp.getReferenceNo();
-              JSONResponse.put("status", saleResp.getStatus());
-              JSONResponse.put("data", Integer.toString(saleResp.getTransactionDate()));
-              JSONResponse.put("time", Integer.toString(saleResp.getTransactionTime()));
-              JSONResponse.put("cardType", saleResp.getCustomerCardType());
-              JSONResponse.put("customerPan", saleResp.getCustomerAccountNo());
-              JSONResponse.put("referenceNumber", saleResp.getReferenceNo());
-              JSONResponse.put("terminalId", saleResp.getTerminalId());
-              JSONResponse.put("totalAmount", Integer.toString(saleResp.getTotalAmount()));
+                            System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()));
+                            System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()));
+                            System.out.println("Card Type: " + saleResp.getCustomerCardType());
+                            System.out.println("Customer PAN " + saleResp.getCustomerAccountNo());
+                            System.out.println("Reference Number: " + saleResp.getReferenceNo());
+                            System.out.println("Terminal ID: " + saleResp.getTerminalId());
+                            System.out.println("Total Amount: " + Integer.toString(saleResp.getTotalAmount()));
+                            refNo = saleResp.getReferenceNo();
+                            JSONResponse.put("status", saleResp.getStatus());
+                            JSONResponse.put("data", Integer.toString(saleResp.getTransactionDate()));
+                            JSONResponse.put("time", Integer.toString(saleResp.getTransactionTime()));
+                            JSONResponse.put("cardType", saleResp.getCustomerCardType());
+                            JSONResponse.put("customerPan", saleResp.getCustomerAccountNo());
+                            JSONResponse.put("referenceNumber", saleResp.getReferenceNo());
+                            JSONResponse.put("terminalId", saleResp.getTerminalId());
+                            JSONResponse.put("totalAmount", Integer.toString(saleResp.getTotalAmount()));
+                        }
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.CancelledByUser
+                            || status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.TimeoutOnUserInput) {
+                        System.out.println("Cancelled or timed out");
+                        JSONResponse.put("error", "Cancelled or timed out");
+                        break;
+                    }
+
+                } while (multiTransaction);
+
+                //Reference number is not null, which means we can use it to send a Void request
+
+                System.out.println("Disconnecting ...  ");
+                device.disconnect();
+                System.out.println("OK");
+
+            } catch (TsiException e) {
+                ret = new TsiStatus(e);
+                System.out.println(e.getMessage());
+                JSONResponse.put("error", e.getMessage());
+            } finally {
+                device.dispose();
             }
-          } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.CancelledByUser
-              || status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.TimeoutOnUserInput) {
-            System.out.println("Cancelled or timed out");
-            JSONResponse.put("error", "Cancelled or timed out");
-            break;
-          }
+        } else {
+            JSONResponse.put("error", "Ip Address / port / amount is missing");
+        }
 
-        } while (multiTransaction);
-
-        //Reference number is not null, which means we can use it to send a Void request
-
-        System.out.println("Disconnecting ...  ");
-        device.disconnect();
-        System.out.println("OK");
-
-      } catch (TsiException e) {
-        ret = new TsiStatus(e);
-        System.out.println(e.getMessage());
-        JSONResponse.put("error", e.getMessage());
-      } finally {
-        device.dispose();
-      }
-    } else {
-      JSONResponse.put("error", "Ip Address / port / amount is missing");
+        try {
+            String status = JSONResponse.getString("error");
+            callbackContext.error(JSONResponse.toString());
+        } catch (JSONException e) {
+            callbackContext.success(JSONResponse.toString());
+        }
     }
 
-    try {
-      String status = JSONResponse.getString("error");
-      callbackContext.error(JSONResponse.toString());
-    } catch (JSONException e) {
-      callbackContext.success(JSONResponse.toString());
-    }
-  }
+    private void voidTransation(String ip_address, String port, String refNo, CallbackContext callbackContext)
+            throws JSONException {
+        JSONObject JSONResponse = new JSONObject();
+        if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
+                && refNo.trim() != null && refNo.trim().length() > 0) {
 
-  private void voidTransation(String ip_address, String port, String refNo, CallbackContext callbackContext)
-      throws JSONException {
-    JSONObject JSONResponse = new JSONObject();
-    if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
-        && refNo.trim() != null && refNo.trim().length() > 0) {
+            TsiStatus ret = new TsiStatus();
+            System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
+            System.out.println("iConnect version " + Utility.iConnectVersion());
+            IConnectDevice device = null;
+            try {
+                device = new IConnectTcpDevice(ip_address, port);
+                //pass "this" as an class implementing IConnectDevice.Logger
+                // device.enableTsiTraces(true,this);
+                TransactionManager transactionManager = new TransactionManager(device);
 
-      TsiStatus ret = new TsiStatus();
-      System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
-      System.out.println("iConnect version " + Utility.iConnectVersion());
-      IConnectDevice device = null;
-      try {
-        device = new IConnectTcpDevice(ip_address, port);
-        //pass "this" as an class implementing IConnectDevice.Logger
-        // device.enableTsiTraces(true,this);
-        TransactionManager transactionManager = new TransactionManager(device);
+                boolean multiTransaction = false;
 
-        boolean multiTransaction = false;
+                //Reference number is not null, which means we can use it to send a Void request
 
-        //Reference number is not null, which means we can use it to send a Void request
+                //reconnect to a terminal
+                device.connect();
+                //create and fill a void request object
+                RequestType.VoidRequest voidReq = new RequestType.VoidRequest();
+                voidReq.setReferenceNo(refNo);
 
-        //reconnect to a terminal
-        device.connect();
-        //create and fill a void request object
-        RequestType.VoidRequest voidReq = new RequestType.VoidRequest();
-        voidReq.setReferenceNo(refNo);
+                System.out.println("Void request with reference number " + refNo + " is being sent...");
+                transactionManager.sendRequest(voidReq);
 
-        System.out.println("Void request with reference number " + refNo + " is being sent...");
-        transactionManager.sendRequest(voidReq);
+                do {
 
-        do {
+                    ResponseType.Raw raw = transactionManager.receiveResponse();
+                    iConnectTsiTypes.TransactionStatus status = raw.getStatus();
 
-          ResponseType.Raw raw = transactionManager.receiveResponse();
-          iConnectTsiTypes.TransactionStatus status = raw.getStatus();
+                    //the same outcome as from using status.toString()
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
 
-          //the same outcome as from using status.toString()
-          System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
+                    multiTransaction = raw.isMultiTransactionFlag();
 
-          multiTransaction = raw.isMultiTransactionFlag();
+                    if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+                        multiTransaction = printReceipt(raw, transactionManager);
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                        ResponseType.VoidResponse voidResp = new ResponseType.VoidResponse().validate(raw);
+                        if (voidResp == null) {
+                            System.out
+                                    .println("ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType());
+                            JSONResponse.put("error",
+                                    "ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType());
+                            break;
+                        }
+                        System.out.println("Successfully voided");
+                        JSONResponse.put("status", voidResp.getStatus());
+                    }
+                } while (multiTransaction);
 
-          if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
-            multiTransaction = printReceipt(raw, transactionManager);
-          } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
-            ResponseType.VoidResponse voidResp = new ResponseType.VoidResponse().validate(raw);
-            if (voidResp == null) {
-              System.out
-                  .println("ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType());
-              JSONResponse.put("error",
-                  "ERROR: Cannot construct void response object from raw. Reported type: " + raw.getType());
-              break;
+                System.out.println("Disconnecting ...  ");
+                device.disconnect();
+                System.out.println("OK");
+
+            } catch (TsiException e) {
+                ret = new TsiStatus(e);
+                System.out.println(e.getMessage());
+                JSONResponse.put("error", e.getMessage());
+            } finally {
+                device.dispose();
             }
-            System.out.println("Successfully voided");
-            JSONResponse.put("status", voidResp.getStatus());
-          }
-        } while (multiTransaction);
+        } else {
+            JSONResponse.put("error", "Ip Address / port / refNum is missing");
+        }
 
-        System.out.println("Disconnecting ...  ");
-        device.disconnect();
-        System.out.println("OK");
+        try {
+            String status = JSONResponse.getString("error");
+            callbackContext.error(JSONResponse.toString());
+        } catch (JSONException e) {
+            callbackContext.success(JSONResponse.toString());
+        }
 
-      } catch (TsiException e) {
-        ret = new TsiStatus(e);
-        System.out.println(e.getMessage());
-        JSONResponse.put("error", e.getMessage());
-      } finally {
-        device.dispose();
-      }
-    } else {
-      JSONResponse.put("error", "Ip Address / port / refNum is missing");
     }
-
-    try {
-      String status = JSONResponse.getString("error");
-      callbackContext.error(JSONResponse.toString());
-    } catch (JSONException e) {
-      callbackContext.success(JSONResponse.toString());
-    }
-
-  }
 
   /*
   private void processSaleRequest(RequestType.Sale saleReq,String ip_address,String port){
@@ -348,22 +347,22 @@ public class cordovaPluginIngenico extends CordovaPlugin {
   }
   */
 
-  private boolean printReceipt(ResponseType.Raw resp, TransactionManager transactionManager) {
+    private boolean printReceipt(ResponseType.Raw resp, TransactionManager transactionManager) {
 
-    System.out.println("Receipt Information");
-    for (Map.Entry<Integer, String> tag : resp.tags().entrySet()) {
-      System.out.println("Tag " + Integer.toString(tag.getKey()) + ": " + tag.getValue());
-    }
+        System.out.println("Receipt Information");
+        for (Map.Entry<Integer, String> tag : resp.tags().entrySet()) {
+            System.out.println("Tag " + Integer.toString(tag.getKey()) + ": " + tag.getValue());
+        }
 
-    RequestType.PrintingStatus req = new RequestType.PrintingStatus(
-        new iConnectTsiTypes.EcrPrintingStatus(iConnectTsiTypes.EcrPrintingStatus.Ok));
-    try {
-      transactionManager.sendRequest(req);
-    } catch (TsiException e) {
-      System.out.println("EXCEPTION : " + e.getMessage());
-      return false;
+        RequestType.PrintingStatus req = new RequestType.PrintingStatus(
+                new iConnectTsiTypes.EcrPrintingStatus(iConnectTsiTypes.EcrPrintingStatus.Ok));
+        try {
+            transactionManager.sendRequest(req);
+        } catch (TsiException e) {
+            System.out.println("EXCEPTION : " + e.getMessage());
+            return false;
+        }
+        return true;
     }
-    return true;
-  }
 
 }
