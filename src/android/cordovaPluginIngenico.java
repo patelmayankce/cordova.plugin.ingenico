@@ -79,7 +79,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
 
                     iConnectTsiTypes.TransactionStatus status = resp.getStatus();
                     multiTransaction = resp.isMultiTransactionFlag();
-
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
                     //Handle receipt printing
                     if (resp.getStatus().getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
 
