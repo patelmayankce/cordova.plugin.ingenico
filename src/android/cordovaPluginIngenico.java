@@ -111,6 +111,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                             JSONResponse.put("cardType", saleResp.getCustomerCardType());
                             JSONResponse.put("customerPan", saleResp.getCustomerAccountNo());
                             JSONResponse.put("referenceNumber", saleResp.getReferenceNo());
+                            JSONResponse.put("invoiceNumber", saleResp.getInvoiceNo());
                             JSONResponse.put("terminalId", saleResp.getTerminalId());
                             JSONResponse.put("totalAmount", Integer.toString(saleResp.getTotalAmount()));
                         }
