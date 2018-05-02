@@ -24,7 +24,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         if (action.equals("connect")) {
-            this.connect(args.getString(0), args.getString(1), args.getInt(2), callbackContext);
+            this.connect(args.getString(0), args.getString(1), args.getInt(2), args.getString(3), callbackContext);
             return true;
         } else if (action.equals("void")) {
             this.voidTransation(args.getString(0), args.getString(1), args.getString(2), callbackContext);
@@ -36,12 +36,12 @@ public class cordovaPluginIngenico extends CordovaPlugin {
         return false;
     }
 
-    private void connect(String ip_address, String port, Integer amount, CallbackContext callbackContext) throws JSONException {
+    private void connect(String ip_address, String port, Integer amount, String invoiceNo, CallbackContext callbackContext) throws JSONException {
         System.out.println("Ingenico Connecting......");
         JSONObject JSONResponse = new JSONObject();
 
         if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
-                && amount != null) {
+                && amount != null && invoiceNo.trim() != null && invoiceNo.trim().length() > 0) {
             RequestType.Sale saleReq = new RequestType.Sale(amount);
             saleReq.setClerkId(1);
             saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
@@ -99,7 +99,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                             break;
                         } else {
                             System.out.println("Status: " + saleResp.getStatus());
-
+                            saleResp.setInvoiceNo(invoiceNo);
                             System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()));
                             System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()));
                             System.out.println("Card Type: " + saleResp.getCustomerCardType());

@@ -1,7 +1,7 @@
 var exec = require('cordova/exec');
 
-exports.connect = function (ip_address, port, amount, success, error) {
-    exec(success, error, 'cordovaPluginIngenico', 'connect', [ip_address, port, amount]);
+exports.connect = function (ip_address, port, amount, invoiceNo, success, error) {
+    exec(success, error, 'cordovaPluginIngenico', 'connect', [ip_address, port, amount, invoiceNo]);
 };
 
 exports.void = function (ip_address, port, ref_no, success, error) {
