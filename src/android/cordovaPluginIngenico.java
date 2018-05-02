@@ -255,7 +255,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                 device.connect();
                 //create and fill a add tip request object
                 RequestType.AddTip AddTipReq = new RequestType.AddTip();
-                AddTipReq.setReferenceNo(invoiceNo);
+                AddTipReq.setInvoiceNo(invoiceNo);
 
                 System.out.println("add tip request with reference number " + invoiceNo + " is being sent...");
                 transactionManager.sendRequest(AddTipReq);
