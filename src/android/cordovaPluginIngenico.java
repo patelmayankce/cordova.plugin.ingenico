@@ -45,7 +45,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
             RequestType.Sale saleReq = new RequestType.Sale(amount);
             saleReq.setClerkId(1);
             saleReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
-
+            saleReq.setInvoiceNo(invoiceNo);
             // this.processSaleRequest(saleReq,ip_address,port);
 
             TsiStatus ret = new TsiStatus();
@@ -99,7 +99,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                             break;
                         } else {
                             System.out.println("Status: " + saleResp.getStatus());
-                            saleResp.setInvoiceNo(invoiceNo);
+
                             System.out.println("Date: " + Integer.toString(saleResp.getTransactionDate()));
                             System.out.println("Time: " + Integer.toString(saleResp.getTransactionTime()));
                             System.out.println("Card Type: " + saleResp.getCustomerCardType());
