@@ -29,6 +29,9 @@ public class cordovaPluginIngenico extends CordovaPlugin {
         } else if (action.equals("void")) {
             this.voidTransation(args.getString(0), args.getString(1), args.getString(2), callbackContext);
             return true;
+        } else if (action.equals("addTip")) {
+            this.addTip(args.getString(0), args.getString(1), args.getString(2), callbackContext);
+            return true;
         }
         return false;
     }
@@ -201,6 +204,85 @@ public class cordovaPluginIngenico extends CordovaPlugin {
                         }
                         System.out.println("Successfully voided");
                         JSONResponse.put("status", voidResp.getStatus());
+                    }
+                } while (multiTransaction);
+
+                System.out.println("Disconnecting ...  ");
+                device.disconnect();
+                System.out.println("OK");
+
+            } catch (TsiException e) {
+                ret = new TsiStatus(e);
+                System.out.println(e.getMessage());
+                JSONResponse.put("error", e.getMessage());
+            } finally {
+                device.dispose();
+            }
+        } else {
+            JSONResponse.put("error", "Ip Address / port / refNum is missing");
+        }
+
+        try {
+            String status = JSONResponse.getString("error");
+            callbackContext.error(JSONResponse.toString());
+        } catch (JSONException e) {
+            callbackContext.success(JSONResponse.toString());
+        }
+
+    }
+
+    private void addTip(String ip_address, String port, String invoiceNo, CallbackContext callbackContext)
+            throws JSONException {
+        JSONObject JSONResponse = new JSONObject();
+        if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
+                && invoiceNo.trim() != null && invoiceNo.trim().length() > 0) {
+
+            TsiStatus ret = new TsiStatus();
+            System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
+            System.out.println("iConnect version " + Utility.iConnectVersion());
+            IConnectDevice device = null;
+            try {
+                device = new IConnectTcpDevice(ip_address, port);
+                //pass "this" as an class implementing IConnectDevice.Logger
+                // device.enableTsiTraces(true,this);
+                TransactionManager transactionManager = new TransactionManager(device);
+
+                boolean multiTransaction = false;
+
+                //Reference number is not null, which means we can use it to send a add tip request
+
+                //reconnect to a terminal
+                device.connect();
+                //create and fill a add tip request object
+                RequestType.AddTip AddTipReq = new RequestType.AddTip();
+                AddTipReq.setReferenceNo(invoiceNo);
+
+                System.out.println("add tip request with reference number " + invoiceNo + " is being sent...");
+                transactionManager.sendRequest(AddTipReq);
+
+                do {
+
+                    ResponseType.Raw raw = transactionManager.receiveResponse();
+                    iConnectTsiTypes.TransactionStatus status = raw.getStatus();
+
+                    //the same outcome as from using status.toString()
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
+
+                    multiTransaction = raw.isMultiTransactionFlag();
+
+                    if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+                        multiTransaction = printReceipt(raw, transactionManager);
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                        ResponseType.AddTip addTipResp = new ResponseType.AddTip().validate(raw);
+                        if (addTipResp == null) {
+                            System.out
+                                    .println("ERROR: Cannot construct add tip response object from raw. Reported type: " + raw.getType());
+                            JSONResponse.put("error",
+                                    "ERROR: Cannot construct add tip response object from raw. Reported type: " + raw.getType());
+                            break;
+                        }
+                        System.out.println("Successfully add tip");
+                        JSONResponse.put("status", addTipResp.getStatus());
                     }
                 } while (multiTransaction);
 
