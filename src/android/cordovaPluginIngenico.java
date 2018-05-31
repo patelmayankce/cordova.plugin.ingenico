@@ -30,7 +30,7 @@ public class cordovaPluginIngenico extends CordovaPlugin {
             this.voidTransation(args.getString(0), args.getString(1), args.getString(2), callbackContext);
             return true;
         } else if (action.equals("refund")) {
-            this.refundTransation(args.getString(0), args.getString(1), args.getString(2), args.getString(3), callbackContext);
+            this.refundTransation(args.getString(0), args.getString(1), args.getInt(2), args.getString(3), callbackContext);
             return true;
         } else if (action.equals("addTip")) {
             this.addTip(args.getString(0), args.getString(1), args.getString(2), callbackContext);
