@@ -29,6 +29,9 @@ public class cordovaPluginIngenico extends CordovaPlugin {
         } else if (action.equals("void")) {
             this.voidTransation(args.getString(0), args.getString(1), args.getString(2), callbackContext);
             return true;
+        } else if (action.equals("refund")) {
+            this.refundTransation(args.getString(0), args.getString(1), args.getString(2), args.getString(3), callbackContext);
+            return true;
         } else if (action.equals("addTip")) {
             this.addTip(args.getString(0), args.getString(1), args.getString(2), callbackContext);
             return true;
@@ -229,6 +232,121 @@ public class cordovaPluginIngenico extends CordovaPlugin {
             callbackContext.success(JSONResponse.toString());
         }
 
+    }
+    
+    private void refundTransation(String ip_address, String port, Integer amount, String invoiceNo, CallbackContext callbackContext) throws JSONException {
+        System.out.println("Ingenico Connecting......");
+        JSONObject JSONResponse = new JSONObject();
+
+        if (ip_address.trim() != null && ip_address.trim().length() > 0 && port.trim() != null && port.trim().length() > 0
+                && amount != null && invoiceNo.trim() != null && invoiceNo.trim().length() > 0) {
+            RequestType.Refund refundReq = new RequestType.Refund(amount);
+            refundReq.setClerkId(1);
+            refundReq.setEcrTenderType(new iConnectTsiTypes.EcrTenderType.Credit());
+            refundReq.setInvoiceNo(invoiceNo);
+
+            TsiStatus ret = new TsiStatus();
+
+            System.out.println("iConnect-TSI version " + TransactionManager.getVersion());
+            System.out.println("iConnect version " + Utility.iConnectVersion());
+            IConnectDevice device = null;
+
+            try {
+                device = new IConnectTcpDevice(ip_address, port);
+                //pass "this" as an class implementing IConnectDevice.Logger
+                // device.enableTsiTraces(true,this);
+
+                //By contract, first parameter is a refund request object
+                RequestType.Refund req = refundReq;
+
+                TransactionManager transactionManager = new TransactionManager(device);
+
+                System.out.println("Connecting...  ");
+                device.connect();
+                System.out.println("Connected");
+
+                System.out.println("refund request with amount of" + req.getAmount());
+                System.out.println("Sending request ...  ");
+
+                transactionManager.sendRequest(req);
+
+                boolean multiTransaction = false;
+                String refNo = null;
+
+                do {
+                    System.out.println("Waiting for response...  ");
+                    ResponseType.Raw resp = transactionManager.receiveResponse();
+
+                    iConnectTsiTypes.TransactionStatus status = resp.getStatus();
+                    multiTransaction = resp.isMultiTransactionFlag();
+                    System.out.println("Status: " + Utility.TransactionStatusToString(status.getTransactionStatus()));
+                    //Handle receipt printing
+                    if (resp.getStatus().getTransactionStatus() == iConnectTsiTypes.TransactionStatus.ReceiptInformation) {
+
+                        multiTransaction = printReceipt(resp, transactionManager);
+
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.Approved) {
+                        ResponseType.Refund refundResp = new ResponseType.Refund().validate(resp);
+
+                        if (refundResp == null) {
+                            System.out
+                                    .println("ERROR: Cannot construct refund response object from raw. Reported type: " + resp.getType());
+                            JSONResponse.put("error",
+                                    "ERROR: Cannot construct refund response object from raw. Reported type: " + resp.getType());
+                            break;
+                        } else {
+                            System.out.println("Status: " + refundResp.getStatus());
+
+                            System.out.println("Date: " + Integer.toString(refundResp.getTransactionDate()));
+                            System.out.println("Time: " + Integer.toString(refundResp.getTransactionTime()));
+                            System.out.println("Card Type: " + refundResp.getCustomerCardType());
+                            System.out.println("Customer PAN " + refundResp.getCustomerAccountNo());
+                            System.out.println("Reference Number: " + refundResp.getReferenceNo());
+                            System.out.println("Terminal ID: " + refundResp.getTerminalId());
+                            System.out.println("Total Amount: " + Integer.toString(refundResp.getTotalAmount()));
+                            refNo = refundResp.getReferenceNo();
+                            JSONResponse.put("status", refundResp.getStatus());
+                            JSONResponse.put("data", Integer.toString(refundResp.getTransactionDate()));
+                            JSONResponse.put("time", Integer.toString(refundResp.getTransactionTime()));
+                            JSONResponse.put("cardType", refundResp.getCustomerCardType());
+                            JSONResponse.put("customerPan", refundResp.getCustomerAccountNo());
+                            JSONResponse.put("referenceNumber", refundResp.getReferenceNo());
+                            JSONResponse.put("invoiceNumber", refundResp.getInvoiceNo());
+                            JSONResponse.put("terminalId", refundResp.getTerminalId());
+                            JSONResponse.put("totalAmount", Integer.toString(refundResp.getTotalAmount()));
+                        }
+                    } else if (status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.CancelledByUser
+                            || status.getTransactionStatus() == iConnectTsiTypes.TransactionStatus.TimeoutOnUserInput) {
+                        System.out.println("Cancelled or timed out");
+                        JSONResponse.put("error", "Cancelled or timed out");
+                        break;
+                    }
+
+                } while (multiTransaction);
+
+                //Reference number is not null, which means we can use it to send a Void request
+
+                System.out.println("Disconnecting ...  ");
+                device.disconnect();
+                System.out.println("OK");
+
+            } catch (TsiException e) {
+                ret = new TsiStatus(e);
+                System.out.println(e.getMessage());
+                JSONResponse.put("error", e.getMessage());
+            } finally {
+                device.dispose();
+            }
+        } else {
+            JSONResponse.put("error", "Ip Address / port / amount is missing");
+        }
+
+        try {
+            String status = JSONResponse.getString("error");
+            callbackContext.error(JSONResponse.toString());
+        } catch (JSONException e) {
+            callbackContext.success(JSONResponse.toString());
+        }
     }
 
     private void addTip(String ip_address, String port, String invoiceNo, CallbackContext callbackContext)
